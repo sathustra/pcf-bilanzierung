@@ -34,7 +34,7 @@ services:
       db:
         condition: service_healthy
     command: >
-      sh -c "python seed_data.py && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+      sh -c "uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
 
 volumes:
   pgdata:

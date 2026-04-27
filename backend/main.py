@@ -1,19 +1,34 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
+import asyncio
 
-from database import engine
+from database import engine, SessionLocal
 import models
 from routers import products, emission_factors, inventory, calculations
 
-models.Base.metadata.create_all(bind=engine)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Create tables and seed demo data after server is already listening
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _seed)
+    yield
+
+
+def _seed():
+    from seed_data import run_seed
+    run_seed(engine, SessionLocal, models)
+
 
 app = FastAPI(
     title="PCF Bilanzierung",
     description="Product Carbon Footprint Bilanzierung nach GHG Protocol / ISO 14067",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
