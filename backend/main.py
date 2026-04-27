@@ -29,8 +29,22 @@ app.include_router(inventory.router)
 app.include_router(calculations.router)
 
 # Serve frontend static files
-frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
-if os.path.exists(frontend_path):
+# Docker (root Dockerfile): frontend copied to /app/frontend
+# Docker Compose: frontend volume-mounted at /frontend
+# Local dev: ../frontend relative to backend/
+_base = os.path.dirname(os.path.abspath(__file__))
+for _candidate in [
+    os.path.join(_base, "frontend"),
+    os.path.join(_base, "..", "frontend"),
+    "/frontend",
+]:
+    if os.path.isdir(_candidate):
+        frontend_path = os.path.abspath(_candidate)
+        break
+else:
+    frontend_path = None
+
+if frontend_path and os.path.exists(frontend_path):
     app.mount("/static", StaticFiles(directory=os.path.join(frontend_path, "js")), name="js")
     app.mount("/css", StaticFiles(directory=os.path.join(frontend_path, "css")), name="css")
 
