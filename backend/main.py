@@ -61,7 +61,6 @@ else:
 
 if frontend_path and os.path.exists(frontend_path):
     app.mount("/static", StaticFiles(directory=os.path.join(frontend_path, "js")), name="js")
-    app.mount("/css", StaticFiles(directory=os.path.join(frontend_path, "css")), name="css")
 
     @app.get("/")
     def serve_index():
