@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PCF Bilanzierung</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; background: #f8fafc; }
+    .nav-link { @apply flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all; }
+    .nav-link:hover { background: rgba(255,255,255,0.15); }
+    .nav-link.active { background: rgba(255,255,255,0.25); }
+    .card { @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6; }
+    .badge-green { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800; }
+    .badge-yellow { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800; }
+    .badge-red { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800; }
+  </style>
+</head>
+<body>
+
+<!-- Sidebar Navigation -->
+<div class="flex h-screen overflow-hidden">
+  <aside class="w-64 flex-shrink-0 bg-gradient-to-b from-green-800 to-green-900 text-white flex flex-col">
+    <div class="p-6 border-b border-green-700">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-green-600 flex items-center justify-center">
+          <i class="fa-solid fa-leaf text-white"></i>
+        </div>
+        <div>
+          <div class="font-bold text-lg leading-tight">PCF Bilanzierung</div>
+          <div class="text-green-300 text-xs">GHG Protocol · ISO 14067</div>
+        </div>
+      </div>
+    </div>
+    <nav class="flex-1 p-4 space-y-1">
+      <a href="index.html" class="nav-link active" id="nav-dashboard">
+        <i class="fa-solid fa-gauge-high w-4"></i> Dashboard
+      </a>
+      <a href="products.html" class="nav-link" id="nav-products">
+        <i class="fa-solid fa-box w-4"></i> Produkte
+      </a>
+      <a href="emission_factors.html" class="nav-link" id="nav-ef">
+        <i class="fa-solid fa-database w-4"></i> Emissionsfaktoren
+      </a>
+      <a href="inventory.html" class="nav-link" id="nav-inventory">
+        <i class="fa-solid fa-list-check w-4"></i> Bilanzierung
+      </a>
+    </nav>
+    <div class="p-4 border-t border-green-700 text-green-400 text-xs">
+      PoC v0.1 · Cradle-to-Gate
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 overflow-y-auto">
+    <div class="p-8">
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-8">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p class="text-gray-500 text-sm mt-1">PCF-Ergebnisse auf einen Blick</p>
+        </div>
+        <div class="flex gap-3">
+          <select id="productSelect" class="border border-gray-200 rounded-lg px-4 py-2 text-sm bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+            <option value="">Produkt wählen…</option>
+          </select>
+          <button onclick="loadDashboard()" class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800 transition">
+            <i class="fa-solid fa-calculator mr-2"></i>Berechnen
+          </button>
+          <button id="exportBtn" class="border border-gray-200 bg-white text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition hidden">
+            <i class="fa-solid fa-file-excel mr-2 text-green-600"></i>Excel Export
+          </button>
+        </div>
+      </div>
+
+      <!-- GWP Total Banner -->
+      <div id="gwpBanner" class="hidden mb-6 bg-gradient-to-r from-green-700 to-green-800 rounded-xl p-6 text-white">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-green-200 text-sm font-medium uppercase tracking-wide mb-1">GWP-total (PCF)</div>
+            <div class="text-5xl font-bold" id="gwpTotalVal">–</div>
+            <div class="text-green-200 text-sm mt-1">kg CO₂eq pro <span id="gwpUnit">Bezugseinheit</span></div>
+          </div>
+          <div class="text-right">
+            <div class="text-green-200 text-xs mb-1">Datenqualität (DQR)</div>
+            <div id="dqrBadge" class="text-2xl font-bold">–</div>
+            <div id="dqrLabel" class="text-green-200 text-xs mt-1"></div>
+            <div class="mt-2 text-xs text-green-300">Primärdatenanteil: <span id="pdsVal">–</span>%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GWP Indicators Cards -->
+      <div id="gwpCards" class="hidden grid grid-cols-5 gap-4 mb-6">
+        <div class="card text-center">
+          <div class="text-xs text-gray-500 mb-1">GWP-fossil</div>
+          <div id="gwpFossil" class="text-xl font-bold text-gray-800">–</div>
+          <div class="text-xs text-gray-400 mt-1">kg CO₂eq</div>
+        </div>
+        <div class="card text-center">
+          <div class="text-xs text-gray-500 mb-1">GWP-biogenic</div>
+          <div id="gwpBiogenic" class="text-xl font-bold text-emerald-700">–</div>
+          <div class="text-xs text-gray-400 mt-1">kg CO₂eq</div>
+        </div>
+        <div class="card text-center">
+          <div class="text-xs text-gray-500 mb-1">GWP-biogenic uptake</div>
+          <div id="gwpUptake" class="text-xl font-bold text-blue-600">–</div>
+          <div class="text-xs text-gray-400 mt-1">kg CO₂eq (negativ)</div>
+        </div>
+        <div class="card text-center">
+          <div class="text-xs text-gray-500 mb-1">GWP-LULUC</div>
+          <div id="gwpLuluc" class="text-xl font-bold text-amber-600">–</div>
+          <div class="text-xs text-gray-400 mt-1">kg CO₂eq</div>
+        </div>
+        <div class="card text-center bg-green-50 border-green-200">
+          <div class="text-xs text-green-700 font-medium mb-1">GWP-total</div>
+          <div id="gwpTotalCard" class="text-xl font-bold text-green-800">–</div>
+          <div class="text-xs text-green-600 mt-1">kg CO₂eq</div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div id="chartsRow" class="hidden grid grid-cols-2 gap-6 mb-6">
+        <div class="card">
+          <h3 class="font-semibold text-gray-800 mb-4">Life Cycle Stages – GWP-fossil</h3>
+          <canvas id="lcsChart" height="200"></canvas>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold text-gray-800 mb-4">Hotspot-Analyse – Sub-Kategorien (fossil)</h3>
+          <canvas id="hotspotChart" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- LCS Table -->
+      <div id="lcsTableCard" class="hidden card mb-6">
+        <h3 class="font-semibold text-gray-800 mb-4">Life Cycle Stages – Detail</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-gray-50 text-gray-600 text-xs uppercase">
+                <th class="text-left px-4 py-3 rounded-l-lg">Stage</th>
+                <th class="text-right px-4 py-3">Biogen</th>
+                <th class="text-right px-4 py-3">LUC</th>
+                <th class="text-right px-4 py-3">Fossil</th>
+                <th class="text-right px-4 py-3">Anteil GWP-total</th>
+                <th class="text-right px-4 py-3 rounded-r-lg">Anteil GWP-fossil</th>
+              </tr>
+            </thead>
+            <tbody id="lcsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Subcategory Hotspot Table -->
+      <div id="hotspotTableCard" class="hidden card">
+        <h3 class="font-semibold text-gray-800 mb-4">Sub-Kategorien – Hotspot Analyse</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-gray-50 text-gray-600 text-xs uppercase">
+                <th class="text-left px-4 py-3 rounded-l-lg">Sub-Kategorie</th>
+                <th class="text-left px-4 py-3">Life Cycle Stage</th>
+                <th class="text-right px-4 py-3">Biogen</th>
+                <th class="text-right px-4 py-3">LUC</th>
+                <th class="text-right px-4 py-3 rounded-r-lg">Fossil</th>
+              </tr>
+            </thead>
+            <tbody id="hotspotTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div id="emptyState" class="text-center py-20 text-gray-400">
+        <i class="fa-solid fa-leaf text-6xl mb-4 text-green-200"></i>
+        <p class="text-lg font-medium">Produkt wählen und berechnen</p>
+        <p class="text-sm mt-1">Wählen Sie ein Produkt aus der Dropdown-Liste und klicken Sie auf „Berechnen"</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast" class="fixed bottom-6 right-6 px-5 py-3 rounded-lg text-white text-sm font-medium shadow-lg opacity-0 transition-all duration-300"></div>
+
+<script src="/static/api.js"></script>
+<script>
+  let lcsChartInst = null;
+  let hotspotChartInst = null;
+
+  async function initProducts() {
+    const products = await api.getProducts();
+    const sel = document.getElementById("productSelect");
+    products.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = p.product_name;
+      sel.appendChild(opt);
+    });
+    if (products.length > 0) {
+      sel.value = products[0].id;
+    }
+  }
+
+  async function loadDashboard() {
+    const pid = document.getElementById("productSelect").value;
+    if (!pid) { showToast("Bitte Produkt wählen", "error"); return; }
+    try {
+      const r = await api.calculate(pid);
+      renderDashboard(r);
+      document.getElementById("exportBtn").classList.remove("hidden");
+      document.getElementById("exportBtn").onclick = () => {
+        window.location.href = api.exportExcel(pid);
+      };
+    } catch (e) {
+      showToast(e.message, "error");
+    }
+  }
+
+  function renderDashboard(r) {
+    const gwp = r.gwp_indicators;
+    document.getElementById("emptyState").classList.add("hidden");
+    document.getElementById("gwpBanner").classList.remove("hidden");
+    document.getElementById("gwpCards").classList.remove("hidden");
+    document.getElementById("chartsRow").classList.remove("hidden");
+    document.getElementById("lcsTableCard").classList.remove("hidden");
+    document.getElementById("hotspotTableCard").classList.remove("hidden");
+
+    document.getElementById("gwpTotalVal").textContent = fmt(gwp.gwp_total, 4);
+    document.getElementById("gwpUnit").textContent = r.reference_unit;
+    document.getElementById("gwpFossil").textContent = fmt(gwp.gwp_fossil, 4);
+    document.getElementById("gwpBiogenic").textContent = fmt(gwp.gwp_biogenic_emissions, 4);
+    document.getElementById("gwpUptake").textContent = fmt(gwp.gwp_biogenic_uptake, 4);
+    document.getElementById("gwpLuluc").textContent = fmt(gwp.gwp_luluc, 4);
+    document.getElementById("gwpTotalCard").textContent = fmt(gwp.gwp_total, 4);
+
+    const dqr = r.dqr;
+    document.getElementById("dqrBadge").textContent = dqr.dqr_score;
+    const lightMap = { grün: "🟢", gelb: "🟡", rot: "🔴" };
+    document.getElementById("dqrLabel").textContent = `${lightMap[dqr.traffic_light] || ""} DQR ${dqr.traffic_light}`;
+    document.getElementById("pdsVal").textContent = dqr.primary_data_share;
+
+    renderLCSChart(r.lifecycle_results);
+    renderHotspotChart(r.subcategory_results);
+    renderLCSTable(r.lifecycle_results);
+    renderHotspotTable(r.subcategory_results);
+  }
+
+  function renderLCSChart(data) {
+    if (lcsChartInst) lcsChartInst.destroy();
+    const ctx = document.getElementById("lcsChart").getContext("2d");
+    lcsChartInst = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: data.map(d => d.stage),
+        datasets: [{
+          label: "Fossil (kg CO₂eq)",
+          data: data.map(d => d.fossil),
+          backgroundColor: ["#2d6a4f", "#40916c", "#52b788"],
+          borderRadius: 6,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { font: { size: 10 } } },
+          y: { ticks: { font: { size: 10 } } },
+        },
+      },
+    });
+  }
+
+  function renderHotspotChart(data) {
+    if (hotspotChartInst) hotspotChartInst.destroy();
+    const sorted = [...data].sort((a, b) => b.fossil - a.fossil).slice(0, 8);
+    const ctx = document.getElementById("hotspotChart").getContext("2d");
+    hotspotChartInst = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: sorted.map(d => d.sub_category.length > 30 ? d.sub_category.slice(0, 28) + "…" : d.sub_category),
+        datasets: [{
+          label: "Fossil (kg CO₂eq)",
+          data: sorted.map(d => d.fossil),
+          backgroundColor: "#74c69d",
+          borderRadius: 6,
+        }],
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { font: { size: 10 } } },
+          y: { ticks: { font: { size: 10 } } },
+        },
+      },
+    });
+  }
+
+  function renderLCSTable(data) {
+    const tbody = document.getElementById("lcsTableBody");
+    tbody.innerHTML = data.map(d => `
+      <tr class="border-t border-gray-50 hover:bg-gray-50">
+        <td class="px-4 py-3 font-medium text-gray-800">${d.stage}</td>
+        <td class="px-4 py-3 text-right text-emerald-700">${fmt(d.biogenic, 5)}</td>
+        <td class="px-4 py-3 text-right text-amber-600">${fmt(d.luc, 5)}</td>
+        <td class="px-4 py-3 text-right text-gray-800">${fmt(d.fossil, 5)}</td>
+        <td class="px-4 py-3 text-right">
+          <div class="flex items-center justify-end gap-2">
+            <div class="w-24 bg-gray-100 rounded-full h-2">
+              <div class="bg-green-600 h-2 rounded-full" style="width:${Math.min(d.share_of_gwp_total, 100)}%"></div>
+            </div>
+            <span class="text-gray-600 w-12 text-right">${d.share_of_gwp_total}%</span>
+          </div>
+        </td>
+        <td class="px-4 py-3 text-right">
+          <div class="flex items-center justify-end gap-2">
+            <div class="w-24 bg-gray-100 rounded-full h-2">
+              <div class="bg-blue-500 h-2 rounded-full" style="width:${Math.min(d.share_of_gwp_fossil, 100)}%"></div>
+            </div>
+            <span class="text-gray-600 w-12 text-right">${d.share_of_gwp_fossil}%</span>
+          </div>
+        </td>
+      </tr>`).join("");
+  }
+
+  function renderHotspotTable(data) {
+    const sorted = [...data].sort((a, b) => b.fossil - a.fossil);
+    const tbody = document.getElementById("hotspotTableBody");
+    tbody.innerHTML = sorted.map((d, i) => `
+      <tr class="border-t border-gray-50 hover:bg-gray-50 ${i === 0 ? 'bg-amber-50' : ''}">
+        <td class="px-4 py-3 font-medium text-gray-800">${i === 0 ? '🔥 ' : ''}${d.sub_category}</td>
+        <td class="px-4 py-3 text-gray-500 text-xs">${d.life_cycle_stage}</td>
+        <td class="px-4 py-3 text-right text-emerald-700">${fmt(d.biogenic, 5)}</td>
+        <td class="px-4 py-3 text-right text-amber-600">${fmt(d.luc, 5)}</td>
+        <td class="px-4 py-3 text-right font-semibold text-gray-800">${fmt(d.fossil, 5)}</td>
+      </tr>`).join("");
+  }
+
+  initProducts();
+</script>
+</body>
+</html>

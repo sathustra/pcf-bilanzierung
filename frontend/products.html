@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Produkte – PCF Bilanzierung</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body class="bg-gray-50" style="font-family:'Inter',system-ui,sans-serif">
+
+<div class="flex h-screen overflow-hidden">
+  <!-- Sidebar -->
+  <aside class="w-64 flex-shrink-0 bg-gradient-to-b from-green-800 to-green-900 text-white flex flex-col">
+    <div class="p-6 border-b border-green-700">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-green-600 flex items-center justify-center">
+          <i class="fa-solid fa-leaf text-white"></i>
+        </div>
+        <div>
+          <div class="font-bold text-lg leading-tight">PCF Bilanzierung</div>
+          <div class="text-green-300 text-xs">GHG Protocol · ISO 14067</div>
+        </div>
+      </div>
+    </div>
+    <nav class="flex-1 p-4 space-y-1">
+      <a href="index.html" class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white hover:bg-white/15">
+        <i class="fa-solid fa-gauge-high w-4"></i> Dashboard
+      </a>
+      <a href="products.html" class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-white/25">
+        <i class="fa-solid fa-box w-4"></i> Produkte
+      </a>
+      <a href="emission_factors.html" class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-white/15">
+        <i class="fa-solid fa-database w-4"></i> Emissionsfaktoren
+      </a>
+      <a href="inventory.html" class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-white/15">
+        <i class="fa-solid fa-list-check w-4"></i> Bilanzierung
+      </a>
+    </nav>
+    <div class="p-4 border-t border-green-700 text-green-400 text-xs">PoC v0.1 · Cradle-to-Gate</div>
+  </aside>
+
+  <main class="flex-1 overflow-y-auto p-8">
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Produkte (Stammdaten)</h1>
+        <p class="text-gray-500 text-sm mt-1">Produktdefinition, Bezugseinheit und Bilanzierungsrahmen</p>
+      </div>
+      <button onclick="openModal()" class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800 transition">
+        <i class="fa-solid fa-plus mr-2"></i>Neues Produkt
+      </button>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 text-gray-500 text-xs uppercase">
+            <th class="text-left px-6 py-4">Produkt</th>
+            <th class="text-left px-4 py-4">Kategorie</th>
+            <th class="text-right px-4 py-4">Bezugseinheit</th>
+            <th class="text-right px-4 py-4">Jahresprod.</th>
+            <th class="text-right px-4 py-4">Gew./Einh.</th>
+            <th class="text-right px-4 py-4">Bio. C-Gehalt</th>
+            <th class="text-center px-4 py-4">Ref.Jahr</th>
+            <th class="text-center px-4 py-4">Aktionen</th>
+          </tr>
+        </thead>
+        <tbody id="productTable"></tbody>
+      </table>
+      <div id="emptyMsg" class="text-center py-16 text-gray-400 hidden">
+        <i class="fa-solid fa-box-open text-4xl mb-3 text-gray-200"></i>
+        <p>Noch keine Produkte angelegt</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal -->
+<div id="modal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 hidden">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
+    <div class="bg-gradient-to-r from-green-700 to-green-800 px-6 py-4 text-white flex items-center justify-between">
+      <h2 class="font-semibold text-lg" id="modalTitle">Produkt anlegen</h2>
+      <button onclick="closeModal()" class="text-green-200 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+    </div>
+    <form id="productForm" onsubmit="saveProduct(event)" class="p-6 grid grid-cols-2 gap-4">
+      <input type="hidden" id="editId" />
+      <div class="col-span-2">
+        <label class="block text-xs font-medium text-gray-700 mb-1">Produktname *</label>
+        <input id="f_product_name" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="z.B. Katalog A4 glossy" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Produktkategorie</label>
+        <input id="f_product_category" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Graphisches Druckerzeugnis" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Bezugseinheit *</label>
+        <input id="f_reference_unit" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="m²" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Jahresproduktion (in Bezugseinheiten) *</label>
+        <input id="f_annual_production" type="number" step="any" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="5000000" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Gewicht pro Bezugseinheit (kg) *</label>
+        <input id="f_weight_per_unit" type="number" step="any" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="0.096" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Biogener C-Gehalt (kg C/Bezugseinheit)</label>
+        <input id="f_biogenic_carbon_content" type="number" step="any" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="0.035" value="0" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Scope</label>
+        <input id="f_scope" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" value="Cradle-to-Gate" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Allokationsmethode</label>
+        <input id="f_allocation_method" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Masse-Allokation" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Referenzjahr</label>
+        <input id="f_reference_year" type="number" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="2023" />
+      </div>
+      <div class="col-span-2 flex justify-end gap-3 mt-2 pt-4 border-t border-gray-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Abbrechen</button>
+        <button type="submit" class="px-6 py-2 bg-green-700 text-white rounded-lg text-sm font-medium hover:bg-green-800">Speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast" class="fixed bottom-6 right-6 px-5 py-3 rounded-lg text-white text-sm font-medium shadow-lg opacity-0 transition-all duration-300"></div>
+
+<script src="/static/api.js"></script>
+<script>
+  let products = [];
+
+  async function load() {
+    products = await api.getProducts();
+    const tbody = document.getElementById("productTable");
+    document.getElementById("emptyMsg").classList.toggle("hidden", products.length > 0);
+    tbody.innerHTML = products.map(p => `
+      <tr class="border-t border-gray-50 hover:bg-gray-50 group">
+        <td class="px-6 py-4">
+          <div class="font-medium text-gray-900">${p.product_name}</div>
+          <div class="text-xs text-gray-400">${p.scope}</div>
+        </td>
+        <td class="px-4 py-4 text-gray-600">${p.product_category || '–'}</td>
+        <td class="px-4 py-4 text-right font-mono">${p.reference_unit}</td>
+        <td class="px-4 py-4 text-right">${p.annual_production.toLocaleString('de-DE')}</td>
+        <td class="px-4 py-4 text-right">${p.weight_per_unit}</td>
+        <td class="px-4 py-4 text-right">${p.biogenic_carbon_content}</td>
+        <td class="px-4 py-4 text-center text-gray-500">${p.reference_year || '–'}</td>
+        <td class="px-4 py-4 text-center">
+          <div class="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition">
+            <button onclick="openModal(${p.id})" class="text-blue-500 hover:text-blue-700 p-1"><i class="fa-solid fa-pen-to-square"></i></button>
+            <button onclick="deleteProduct(${p.id})" class="text-red-400 hover:text-red-600 p-1"><i class="fa-solid fa-trash"></i></button>
+            <a href="inventory.html?pid=${p.id}" class="text-green-500 hover:text-green-700 p-1" title="Bilanzierung öffnen"><i class="fa-solid fa-list-check"></i></a>
+          </div>
+        </td>
+      </tr>`).join("");
+  }
+
+  function openModal(id) {
+    document.getElementById("modal").classList.remove("hidden");
+    if (id) {
+      const p = products.find(x => x.id === id);
+      document.getElementById("modalTitle").textContent = "Produkt bearbeiten";
+      document.getElementById("editId").value = id;
+      document.getElementById("f_product_name").value = p.product_name;
+      document.getElementById("f_product_category").value = p.product_category || "";
+      document.getElementById("f_reference_unit").value = p.reference_unit;
+      document.getElementById("f_annual_production").value = p.annual_production;
+      document.getElementById("f_weight_per_unit").value = p.weight_per_unit;
+      document.getElementById("f_biogenic_carbon_content").value = p.biogenic_carbon_content;
+      document.getElementById("f_scope").value = p.scope;
+      document.getElementById("f_allocation_method").value = p.allocation_method || "";
+      document.getElementById("f_reference_year").value = p.reference_year || "";
+    } else {
+      document.getElementById("modalTitle").textContent = "Produkt anlegen";
+      document.getElementById("editId").value = "";
+      document.getElementById("productForm").reset();
+      document.getElementById("f_scope").value = "Cradle-to-Gate";
+      document.getElementById("f_biogenic_carbon_content").value = "0";
+    }
+  }
+
+  function closeModal() {
+    document.getElementById("modal").classList.add("hidden");
+  }
+
+  async function saveProduct(e) {
+    e.preventDefault();
+    const id = document.getElementById("editId").value;
+    const data = {
+      product_name: document.getElementById("f_product_name").value,
+      product_category: document.getElementById("f_product_category").value || null,
+      reference_unit: document.getElementById("f_reference_unit").value,
+      annual_production: parseFloat(document.getElementById("f_annual_production").value),
+      weight_per_unit: parseFloat(document.getElementById("f_weight_per_unit").value),
+      biogenic_carbon_content: parseFloat(document.getElementById("f_biogenic_carbon_content").value) || 0,
+      scope: document.getElementById("f_scope").value,
+      allocation_method: document.getElementById("f_allocation_method").value || null,
+      reference_year: parseInt(document.getElementById("f_reference_year").value) || null,
+    };
+    try {
+      if (id) {
+        await api.updateProduct(parseInt(id), data);
+        showToast("Produkt aktualisiert");
+      } else {
+        await api.createProduct(data);
+        showToast("Produkt angelegt");
+      }
+      closeModal();
+      load();
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+  }
+
+  async function deleteProduct(id) {
+    if (!confirm("Produkt und alle Bilanzierungsdaten löschen?")) return;
+    try {
+      await api.deleteProduct(id);
+      showToast("Produkt gelöscht");
+      load();
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>

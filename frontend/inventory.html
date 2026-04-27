@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bilanzierung – PCF App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body class="bg-gray-50" style="font-family:'Inter',system-ui,sans-serif">
+
+<div class="flex h-screen overflow-hidden">
+  <aside class="w-64 flex-shrink-0 bg-gradient-to-b from-green-800 to-green-900 text-white flex flex-col">
+    <div class="p-6 border-b border-green-700">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-green-600 flex items-center justify-center"><i class="fa-solid fa-leaf"></i></div>
+        <div><div class="font-bold text-lg leading-tight">PCF Bilanzierung</div><div class="text-green-300 text-xs">GHG Protocol · ISO 14067</div></div>
+      </div>
+    </div>
+    <nav class="flex-1 p-4 space-y-1">
+      <a href="index.html" class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-white/15"><i class="fa-solid fa-gauge-high w-4"></i> Dashboard</a>
+      <a href="products.html" class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-white/15"><i class="fa-solid fa-box w-4"></i> Produkte</a>
+      <a href="emission_factors.html" class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-white/15"><i class="fa-solid fa-database w-4"></i> Emissionsfaktoren</a>
+      <a href="inventory.html" class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-white/25"><i class="fa-solid fa-list-check w-4"></i> Bilanzierung</a>
+    </nav>
+    <div class="p-4 border-t border-green-700 text-green-400 text-xs">PoC v0.1</div>
+  </aside>
+
+  <main class="flex-1 overflow-y-auto p-8">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Bilanzierungsdaten</h1>
+        <p class="text-gray-500 text-sm mt-1">Materialien · Energie · Transport · Abfall</p>
+      </div>
+      <div class="flex gap-3 items-center">
+        <select id="productSelect" class="border border-gray-200 rounded-lg px-4 py-2 text-sm bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+          <option value="">Produkt wählen…</option>
+        </select>
+        <a id="calcLink" href="#" onclick="goCalc()" class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800 transition">
+          <i class="fa-solid fa-calculator mr-2"></i>Zum Dashboard
+        </a>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-1 bg-gray-100 p-1 rounded-xl mb-6 w-fit">
+      <button onclick="switchTab('materials')" id="tab-materials" class="tab-btn px-5 py-2 rounded-lg text-sm font-medium transition bg-white shadow text-gray-900">
+        <i class="fa-solid fa-boxes-stacked mr-2 text-green-600"></i>Materialien
+      </button>
+      <button onclick="switchTab('energy')" id="tab-energy" class="tab-btn px-5 py-2 rounded-lg text-sm font-medium transition text-gray-600 hover:text-gray-900">
+        <i class="fa-solid fa-bolt mr-2 text-amber-500"></i>Energie
+      </button>
+      <button onclick="switchTab('transport')" id="tab-transport" class="tab-btn px-5 py-2 rounded-lg text-sm font-medium transition text-gray-600 hover:text-gray-900">
+        <i class="fa-solid fa-truck mr-2 text-blue-500"></i>Transport
+      </button>
+      <button onclick="switchTab('waste')" id="tab-waste" class="tab-btn px-5 py-2 rounded-lg text-sm font-medium transition text-gray-600 hover:text-gray-900">
+        <i class="fa-solid fa-trash-can mr-2 text-red-500"></i>Abfall
+      </button>
+    </div>
+
+    <!-- Tab Panels -->
+    <div id="panel-materials" class="tab-panel">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="font-semibold text-gray-800">Materialien</h2>
+        <button onclick="openModal('materials')" class="bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-green-800"><i class="fa-solid fa-plus mr-1"></i>Hinzufügen</button>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+        <table class="w-full text-sm min-w-max">
+          <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase">
+            <th class="text-left px-4 py-3">Pos.</th>
+            <th class="text-left px-4 py-3">Bezeichnung</th>
+            <th class="text-left px-4 py-3">Lieferant</th>
+            <th class="text-right px-4 py-3">Batch-Menge (kg)</th>
+            <th class="text-left px-4 py-3">Emissionsfaktor</th>
+            <th class="text-left px-4 py-3">Life Cycle Stage</th>
+            <th class="text-left px-4 py-3">Sub-Kategorie</th>
+            <th class="text-center px-4 py-3">Aktionen</th>
+          </tr></thead>
+          <tbody id="materialsTable"></tbody>
+        </table>
+        <div id="materialsEmpty" class="text-center py-10 text-gray-400 text-sm hidden">Noch keine Einträge</div>
+      </div>
+    </div>
+
+    <div id="panel-energy" class="tab-panel hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="font-semibold text-gray-800">Energie</h2>
+        <button onclick="openModal('energy')" class="bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-green-800"><i class="fa-solid fa-plus mr-1"></i>Hinzufügen</button>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+        <table class="w-full text-sm min-w-max">
+          <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase">
+            <th class="text-left px-4 py-3">Energieträger</th>
+            <th class="text-left px-4 py-3">Prozessschritt</th>
+            <th class="text-right px-4 py-3">Menge (kWh)</th>
+            <th class="text-left px-4 py-3">Emissionsfaktor</th>
+            <th class="text-left px-4 py-3">Life Cycle Stage</th>
+            <th class="text-left px-4 py-3">Sub-Kategorie</th>
+            <th class="text-center px-4 py-3">Aktionen</th>
+          </tr></thead>
+          <tbody id="energyTable"></tbody>
+        </table>
+        <div id="energyEmpty" class="text-center py-10 text-gray-400 text-sm hidden">Noch keine Einträge</div>
+      </div>
+    </div>
+
+    <div id="panel-transport" class="tab-panel hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="font-semibold text-gray-800">Transport</h2>
+        <button onclick="openModal('transport')" class="bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-green-800"><i class="fa-solid fa-plus mr-1"></i>Hinzufügen</button>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+        <table class="w-full text-sm min-w-max">
+          <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase">
+            <th class="text-left px-4 py-3">Typ</th>
+            <th class="text-left px-4 py-3">Von</th>
+            <th class="text-left px-4 py-3">Nach</th>
+            <th class="text-right px-4 py-3">Distanz (km)</th>
+            <th class="text-left px-4 py-3">Transportmittel</th>
+            <th class="text-right px-4 py-3">Gewicht (kg)</th>
+            <th class="text-right px-4 py-3">tkm</th>
+            <th class="text-left px-4 py-3">Emissionsfaktor</th>
+            <th class="text-left px-4 py-3">Life Cycle Stage</th>
+            <th class="text-left px-4 py-3">Sub-Kategorie</th>
+            <th class="text-center px-4 py-3">Aktionen</th>
+          </tr></thead>
+          <tbody id="transportTable"></tbody>
+        </table>
+        <div id="transportEmpty" class="text-center py-10 text-gray-400 text-sm hidden">Noch keine Einträge</div>
+      </div>
+    </div>
+
+    <div id="panel-waste" class="tab-panel hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="font-semibold text-gray-800">Abfall</h2>
+        <button onclick="openModal('waste')" class="bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-green-800"><i class="fa-solid fa-plus mr-1"></i>Hinzufügen</button>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+        <table class="w-full text-sm min-w-max">
+          <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase">
+            <th class="text-left px-4 py-3">Abfallart</th>
+            <th class="text-left px-4 py-3">Behandlung</th>
+            <th class="text-right px-4 py-3">Menge (kg)</th>
+            <th class="text-left px-4 py-3">Emissionsfaktor</th>
+            <th class="text-left px-4 py-3">Life Cycle Stage</th>
+            <th class="text-left px-4 py-3">Sub-Kategorie</th>
+            <th class="text-center px-4 py-3">Aktionen</th>
+          </tr></thead>
+          <tbody id="wasteTable"></tbody>
+        </table>
+        <div id="wasteEmpty" class="text-center py-10 text-gray-400 text-sm hidden">Noch keine Einträge</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Universal Modal -->
+<div id="modal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 hidden">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden max-h-screen overflow-y-auto">
+    <div class="bg-gradient-to-r from-green-700 to-green-800 px-6 py-4 text-white flex items-center justify-between sticky top-0">
+      <h2 class="font-semibold text-lg" id="modalTitle">Eintrag hinzufügen</h2>
+      <button onclick="closeModal()" class="text-green-200 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+    </div>
+    <div id="modalBody" class="p-6"></div>
+  </div>
+</div>
+
+<div id="toast" class="fixed bottom-6 right-6 px-5 py-3 rounded-lg text-white text-sm font-medium shadow-lg opacity-0 transition-all duration-300"></div>
+
+<script src="/static/api.js"></script>
+<script>
+  let currentTab = "materials";
+  let currentProductId = null;
+  let allEFs = [];
+  let currentEntries = {};
+  let editingId = null;
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  async function init() {
+    allEFs = await api.getEFs();
+    const products = await api.getProducts();
+    const sel = document.getElementById("productSelect");
+    products.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = p.product_name;
+      sel.appendChild(opt);
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("pid")) {
+      sel.value = params.get("pid");
+    }
+    if (sel.value) {
+      currentProductId = parseInt(sel.value);
+      loadAll();
+    }
+    sel.onchange = () => {
+      currentProductId = parseInt(sel.value) || null;
+      if (currentProductId) loadAll();
+    };
+  }
+
+  async function loadAll() {
+    if (!currentProductId) return;
+    const [m, e, t, w] = await Promise.all([
+      api.getMaterials(currentProductId),
+      api.getEnergy(currentProductId),
+      api.getTransport(currentProductId),
+      api.getWaste(currentProductId),
+    ]);
+    currentEntries = { materials: m, energy: e, transport: t, waste: w };
+    renderMaterials(m);
+    renderEnergy(e);
+    renderTransport(t);
+    renderWaste(w);
+  }
+
+  function goCalc() {
+    if (currentProductId) {
+      window.location.href = `index.html`;
+      setTimeout(() => {
+        const sel = document.querySelector("#productSelect");
+        if (sel) sel.value = currentProductId;
+      }, 500);
+    }
+  }
+
+  // ── Tab switch ─────────────────────────────────────────────────────────────
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
+    document.getElementById("panel-" + tab).classList.remove("hidden");
+    document.querySelectorAll(".tab-btn").forEach(b => {
+      b.classList.remove("bg-white", "shadow", "text-gray-900");
+      b.classList.add("text-gray-600");
+    });
+    const btn = document.getElementById("tab-" + tab);
+    btn.classList.add("bg-white", "shadow", "text-gray-900");
+    btn.classList.remove("text-gray-600");
+  }
+
+  // ── EF options ─────────────────────────────────────────────────────────────
+  function efOptions(selectedId) {
+    return allEFs.map(ef =>
+      `<option value="${ef.id}" ${ef.id === selectedId ? 'selected' : ''}>${ef.name} [${ef.unit}]</option>`
+    ).join("");
+  }
+
+  function lcsOptions(selected) {
+    return LIFE_CYCLE_STAGES.map(s => `<option value="${s}" ${s === selected ? 'selected' : ''}>${s}</option>`).join("");
+  }
+
+  function subOptions(selected) {
+    return SUB_CATEGORIES.map(s => `<option value="${s}" ${s === selected ? 'selected' : ''}>${s}</option>`).join("");
+  }
+
+  function fieldRow(label, inner) {
+    return `<div><label class="block text-xs font-medium text-gray-700 mb-1">${label}</label>${inner}</div>`;
+  }
+
+  const inputCls = `w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500`;
+  const selCls = `w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500`;
+
+  // ── Modals ─────────────────────────────────────────────────────────────────
+  function openModal(type, entry) {
+    editingId = entry ? entry.id : null;
+    document.getElementById("modal").classList.remove("hidden");
+
+    const lcs = entry ? entry.life_cycle_stage : LIFE_CYCLE_STAGES[0];
+    const sub = entry ? entry.sub_category : SUB_CATEGORIES[0];
+    const efId = entry ? entry.ef_id : (allEFs[0] ? allEFs[0].id : null);
+
+    let body = "";
+    if (type === "materials") {
+      document.getElementById("modalTitle").textContent = editingId ? "Material bearbeiten" : "Material hinzufügen";
+      body = `
+        <form id="entryForm" onsubmit="saveEntry(event,'materials')" class="grid grid-cols-2 gap-4">
+          ${fieldRow("Pos.", `<input id="f_position" type="number" value="${entry?.position || ''}" class="${inputCls}" />`)}
+          ${fieldRow("Bezeichnung *", `<input id="f_designation" required value="${entry?.designation || ''}" class="${inputCls}" />`)}
+          ${fieldRow("Lieferant", `<input id="f_supplier" value="${entry?.supplier || ''}" class="${inputCls}" />`)}
+          ${fieldRow("Batch-Menge (kg) *", `<input id="f_batch_amount" type="number" step="any" required value="${entry?.batch_amount || ''}" class="${inputCls}" />`)}
+          <div class="col-span-2">${fieldRow("Emissionsfaktor *", `<select id="f_ef_id" class="${selCls}">${efOptions(efId)}</select>`)}</div>
+          <div class="col-span-2">${fieldRow("Life Cycle Stage *", `<select id="f_lcs" class="${selCls}">${lcsOptions(lcs)}</select>`)}</div>
+          <div class="col-span-2">${fieldRow("Sub-Kategorie *", `<select id="f_sub" class="${selCls}">${subOptions(sub)}</select>`)}</div>
+          <div class="col-span-2 flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-lg text-sm text-gray-600">Abbrechen</button>
+            <button type="submit" class="px-6 py-2 bg-green-700 text-white rounded-lg text-sm font-medium">Speichern</button>
+          </div>
+        </form>`;
+    } else if (type === "energy") {
+      document.getElementById("modalTitle").textContent = editingId ? "Energie bearbeiten" : "Energie hinzufügen";
+      body = `
+        <form id="entryForm" onsubmit="saveEntry(event,'energy')" class="grid grid-cols-2 gap-4">
+          ${fieldRow("Energieträger *", `<input id="f_energy_carrier" required value="${entry?.energy_carrier || ''}" class="${inputCls}" />`)}
+          ${fieldRow("Prozessschritt", `<input id="f_process_step" value="${entry?.process_step || ''}" class="${inputCls}" />`)}
+          ${fieldRow("Batch-Menge (kWh) *", `<input id="f_batch_amount" type="number" step="any" required value="${entry?.batch_amount || ''}" class="${inputCls}" />`)}
+          <div class="col-span-2">${fieldRow("Emissionsfaktor *", `<select id="f_ef_id" class="${selCls}">${efOptions(efId)}</select>`)}</div>
+          <div class="col-span-2">${fieldRow("Life Cycle Stage *", `<select id="f_lcs" class="${selCls}">${lcsOptions(lcs)}</select>`)}</div>
+          <div class="col-span-2">${fieldRow("Sub-Kategorie *", `<select id="f_sub" class="${selCls}">${subOptions(sub)}</select>`)}</div>
+          <div class="col-span-2 flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-lg text-sm text-gray-600">Abbrechen</button>
+            <button type="submit" class="px-6 py-2 bg-green-700 text-white rounded-lg text-sm font-medium">Speichern</button>
+          </div>
+        </form>`;
+    } else if (type === "transport") {
+      document.getElementById("modalTitle").textContent = editingId ? "Transport bearbeiten" : "Transport hinzufügen";
+      body = `
+        <form id="entryForm" onsubmit="saveEntry(event,'transport')" class="grid grid-cols-2 gap-4">
+          ${fieldRow("Transport-Typ", `<input id="f_transport_type" value="${entry?.transport_type || ''}" class="${inputCls}" />`)}
+          ${fieldRow("Von", `<input id="f_from_location" value="${entry?.from_location || ''}" class="${inputCls}" />`)}
+          ${fieldRow("Nach", `<input id="f_to_location" value="${entry?.to_location || ''}" class="${inputCls}" />`)}
+          ${fieldRow("Distanz (km) *", `<input id="f_distance_km" type="number" step="any" required value="${entry?.distance_km || ''}" class="${inputCls}" />`)}
+          ${fieldRow("Transportmittel", `<input id="f_transport_mode" value="${entry?.transport_mode || ''}" class="${inputCls}" />`)}
+          ${fieldRow("Batch-Gewicht (kg) *", `<input id="f_batch_weight_kg" type="number" step="any" required value="${entry?.batch_weight_kg || ''}" class="${inputCls}" />`)}
+          <div class="col-span-2">${fieldRow("Emissionsfaktor *", `<select id="f_ef_id" class="${selCls}">${efOptions(efId)}</select>`)}</div>
+          <div class="col-span-2">${fieldRow("Life Cycle Stage *", `<select id="f_lcs" class="${selCls}">${lcsOptions(lcs)}</select>`)}</div>
+          <div class="col-span-2">${fieldRow("Sub-Kategorie *", `<select id="f_sub" class="${selCls}">${subOptions(sub)}</select>`)}</div>
+          <div class="col-span-2 flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-lg text-sm text-gray-600">Abbrechen</button>
+            <button type="submit" class="px-6 py-2 bg-green-700 text-white rounded-lg text-sm font-medium">Speichern</button>
+          </div>
+        </form>`;
+    } else if (type === "waste") {
+      document.getElementById("modalTitle").textContent = editingId ? "Abfall bearbeiten" : "Abfall hinzufügen";
+      body = `
+        <form id="entryForm" onsubmit="saveEntry(event,'waste')" class="grid grid-cols-2 gap-4">
+          ${fieldRow("Abfallart *", `<input id="f_waste_type" required value="${entry?.waste_type || ''}" class="${inputCls}" />`)}
+          ${fieldRow("Behandlung", `<input id="f_treatment" value="${entry?.treatment || ''}" class="${inputCls}" />`)}
+          ${fieldRow("Batch-Menge (kg) *", `<input id="f_batch_amount" type="number" step="any" required value="${entry?.batch_amount || ''}" class="${inputCls}" />`)}
+          <div class="col-span-2">${fieldRow("Emissionsfaktor *", `<select id="f_ef_id" class="${selCls}">${efOptions(efId)}</select>`)}</div>
+          <div class="col-span-2">${fieldRow("Life Cycle Stage *", `<select id="f_lcs" class="${selCls}">${lcsOptions(lcs)}</select>`)}</div>
+          <div class="col-span-2">${fieldRow("Sub-Kategorie *", `<select id="f_sub" class="${selCls}">${subOptions(sub)}</select>`)}</div>
+          <div class="col-span-2 flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-lg text-sm text-gray-600">Abbrechen</button>
+            <button type="submit" class="px-6 py-2 bg-green-700 text-white rounded-lg text-sm font-medium">Speichern</button>
+          </div>
+        </form>`;
+    }
+
+    document.getElementById("modalBody").innerHTML = body;
+  }
+
+  function closeModal() { document.getElementById("modal").classList.add("hidden"); }
+
+  // ── Save ────────────────────────────────────────────────────────────────────
+  async function saveEntry(e, type) {
+    e.preventDefault();
+    if (!currentProductId) { showToast("Bitte erst ein Produkt wählen", "error"); return; }
+
+    const lcs = document.getElementById("f_lcs").value;
+    const sub = document.getElementById("f_sub").value;
+    const efId = parseInt(document.getElementById("f_ef_id").value);
+    let data = { product_id: currentProductId, life_cycle_stage: lcs, sub_category: sub, ef_id: efId };
+
+    if (type === "materials") {
+      data = { ...data,
+        position: parseInt(document.getElementById("f_position").value) || null,
+        designation: document.getElementById("f_designation").value,
+        supplier: document.getElementById("f_supplier").value || null,
+        batch_amount: parseFloat(document.getElementById("f_batch_amount").value),
+      };
+    } else if (type === "energy") {
+      data = { ...data,
+        energy_carrier: document.getElementById("f_energy_carrier").value,
+        process_step: document.getElementById("f_process_step").value || null,
+        batch_amount: parseFloat(document.getElementById("f_batch_amount").value),
+      };
+    } else if (type === "transport") {
+      data = { ...data,
+        transport_type: document.getElementById("f_transport_type").value || null,
+        from_location: document.getElementById("f_from_location").value || null,
+        to_location: document.getElementById("f_to_location").value || null,
+        distance_km: parseFloat(document.getElementById("f_distance_km").value),
+        transport_mode: document.getElementById("f_transport_mode").value || null,
+        batch_weight_kg: parseFloat(document.getElementById("f_batch_weight_kg").value),
+      };
+    } else if (type === "waste") {
+      data = { ...data,
+        waste_type: document.getElementById("f_waste_type").value,
+        treatment: document.getElementById("f_treatment").value || null,
+        batch_amount: parseFloat(document.getElementById("f_batch_amount").value),
+      };
+    }
+
+    // For updates, remove product_id
+    const updateData = { ...data };
+    delete updateData.product_id;
+
+    try {
+      if (editingId) {
+        if (type === "materials") await api.updateMaterial(editingId, updateData);
+        else if (type === "energy") await api.updateEnergy(editingId, updateData);
+        else if (type === "transport") await api.updateTransport(editingId, updateData);
+        else if (type === "waste") await api.updateWaste(editingId, updateData);
+        showToast("Eintrag aktualisiert");
+      } else {
+        if (type === "materials") await api.createMaterial(data);
+        else if (type === "energy") await api.createEnergy(data);
+        else if (type === "transport") await api.createTransport(data);
+        else if (type === "waste") await api.createWaste(data);
+        showToast("Eintrag hinzugefügt");
+      }
+      closeModal();
+      loadAll();
+    } catch (err) { showToast(err.message, "error"); }
+  }
+
+  // ── Delete ─────────────────────────────────────────────────────────────────
+  async function deleteEntry(type, id) {
+    if (!confirm("Eintrag löschen?")) return;
+    try {
+      if (type === "materials") await api.deleteMaterial(id);
+      else if (type === "energy") await api.deleteEnergy(id);
+      else if (type === "transport") await api.deleteTransport(id);
+      else if (type === "waste") await api.deleteWaste(id);
+      showToast("Gelöscht");
+      loadAll();
+    } catch (err) { showToast(err.message, "error"); }
+  }
+
+  // ── Render tables ──────────────────────────────────────────────────────────
+  const actionBtns = (type, entry) => `
+    <div class="flex items-center justify-center gap-2">
+      <button onclick='openModal("${type}", ${JSON.stringify(entry).replace(/'/g, "&#39;")})' class="text-blue-500 hover:text-blue-700 p-1"><i class="fa-solid fa-pen-to-square"></i></button>
+      <button onclick='deleteEntry("${type}", ${entry.id})' class="text-red-400 hover:text-red-600 p-1"><i class="fa-solid fa-trash"></i></button>
+    </div>`;
+
+  function renderMaterials(entries) {
+    const tbody = document.getElementById("materialsTable");
+    document.getElementById("materialsEmpty").classList.toggle("hidden", entries.length > 0);
+    tbody.innerHTML = entries.map(e => `
+      <tr class="border-t border-gray-50 hover:bg-gray-50">
+        <td class="px-4 py-3 text-gray-500">${e.position || '–'}</td>
+        <td class="px-4 py-3 font-medium">${e.designation}</td>
+        <td class="px-4 py-3 text-gray-500">${e.supplier || '–'}</td>
+        <td class="px-4 py-3 text-right font-mono">${e.batch_amount.toLocaleString('de-DE')}</td>
+        <td class="px-4 py-3 text-xs text-gray-600">${e.emission_factor?.name || e.ef_id}</td>
+        <td class="px-4 py-3 text-xs text-gray-500">${e.life_cycle_stage}</td>
+        <td class="px-4 py-3 text-xs text-gray-500">${e.sub_category}</td>
+        <td class="px-4 py-3 text-center">${actionBtns('materials', e)}</td>
+      </tr>`).join("");
+  }
+
+  function renderEnergy(entries) {
+    const tbody = document.getElementById("energyTable");
+    document.getElementById("energyEmpty").classList.toggle("hidden", entries.length > 0);
+    tbody.innerHTML = entries.map(e => `
+      <tr class="border-t border-gray-50 hover:bg-gray-50">
+        <td class="px-4 py-3 font-medium">${e.energy_carrier}</td>
+        <td class="px-4 py-3 text-gray-500">${e.process_step || '–'}</td>
+        <td class="px-4 py-3 text-right font-mono">${e.batch_amount.toLocaleString('de-DE')}</td>
+        <td class="px-4 py-3 text-xs text-gray-600">${e.emission_factor?.name || e.ef_id}</td>
+        <td class="px-4 py-3 text-xs text-gray-500">${e.life_cycle_stage}</td>
+        <td class="px-4 py-3 text-xs text-gray-500">${e.sub_category}</td>
+        <td class="px-4 py-3 text-center">${actionBtns('energy', e)}</td>
+      </tr>`).join("");
+  }
+
+  function renderTransport(entries) {
+    const tbody = document.getElementById("transportTable");
+    document.getElementById("transportEmpty").classList.toggle("hidden", entries.length > 0);
+    tbody.innerHTML = entries.map(e => `
+      <tr class="border-t border-gray-50 hover:bg-gray-50">
+        <td class="px-4 py-3 font-medium">${e.transport_type || '–'}</td>
+        <td class="px-4 py-3 text-gray-500">${e.from_location || '–'}</td>
+        <td class="px-4 py-3 text-gray-500">${e.to_location || '–'}</td>
+        <td class="px-4 py-3 text-right font-mono">${e.distance_km}</td>
+        <td class="px-4 py-3 text-gray-500">${e.transport_mode || '–'}</td>
+        <td class="px-4 py-3 text-right font-mono">${e.batch_weight_kg.toLocaleString('de-DE')}</td>
+        <td class="px-4 py-3 text-right font-mono">${fmt(e.transport_performance_tkm, 1)}</td>
+        <td class="px-4 py-3 text-xs text-gray-600">${e.emission_factor?.name || e.ef_id}</td>
+        <td class="px-4 py-3 text-xs text-gray-500">${e.life_cycle_stage}</td>
+        <td class="px-4 py-3 text-xs text-gray-500">${e.sub_category}</td>
+        <td class="px-4 py-3 text-center">${actionBtns('transport', e)}</td>
+      </tr>`).join("");
+  }
+
+  function renderWaste(entries) {
+    const tbody = document.getElementById("wasteTable");
+    document.getElementById("wasteEmpty").classList.toggle("hidden", entries.length > 0);
+    tbody.innerHTML = entries.map(e => `
+      <tr class="border-t border-gray-50 hover:bg-gray-50">
+        <td class="px-4 py-3 font-medium">${e.waste_type}</td>
+        <td class="px-4 py-3 text-gray-500">${e.treatment || '–'}</td>
+        <td class="px-4 py-3 text-right font-mono">${e.batch_amount.toLocaleString('de-DE')}</td>
+        <td class="px-4 py-3 text-xs text-gray-600">${e.emission_factor?.name || e.ef_id}</td>
+        <td class="px-4 py-3 text-xs text-gray-500">${e.life_cycle_stage}</td>
+        <td class="px-4 py-3 text-xs text-gray-500">${e.sub_category}</td>
+        <td class="px-4 py-3 text-center">${actionBtns('waste', e)}</td>
+      </tr>`).join("");
+  }
+
+  init();
+</script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pcf_db
+      POSTGRES_USER: pcf_user
+      POSTGRES_PASSWORD: pcf_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - pcfnet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pcf_user -d pcf_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://pcf_user:pcf_password@db:5432/pcf_db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./frontend:/frontend
+    networks:
+      - pcfnet
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "python seed_data.py && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+
+volumes:
+  pgdata:
+
+networks:
+  pcfnet:
+    driver: bridge

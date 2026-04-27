@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Emissionsfaktoren – PCF Bilanzierung</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body class="bg-gray-50" style="font-family:'Inter',system-ui,sans-serif">
+
+<div class="flex h-screen overflow-hidden">
+  <aside class="w-64 flex-shrink-0 bg-gradient-to-b from-green-800 to-green-900 text-white flex flex-col">
+    <div class="p-6 border-b border-green-700">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-green-600 flex items-center justify-center"><i class="fa-solid fa-leaf"></i></div>
+        <div><div class="font-bold text-lg leading-tight">PCF Bilanzierung</div><div class="text-green-300 text-xs">GHG Protocol · ISO 14067</div></div>
+      </div>
+    </div>
+    <nav class="flex-1 p-4 space-y-1">
+      <a href="index.html" class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-white/15"><i class="fa-solid fa-gauge-high w-4"></i> Dashboard</a>
+      <a href="products.html" class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-white/15"><i class="fa-solid fa-box w-4"></i> Produkte</a>
+      <a href="emission_factors.html" class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-white/25"><i class="fa-solid fa-database w-4"></i> Emissionsfaktoren</a>
+      <a href="inventory.html" class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-white/15"><i class="fa-solid fa-list-check w-4"></i> Bilanzierung</a>
+    </nav>
+    <div class="p-4 border-t border-green-700 text-green-400 text-xs">PoC v0.1</div>
+  </aside>
+
+  <main class="flex-1 overflow-y-auto p-8">
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Emissionsfaktor-Datenbank</h1>
+        <p class="text-gray-500 text-sm mt-1">Biogen · LUC · Fossil | Datenqualitätsbewertung (TeR, GeR, TiR)</p>
+      </div>
+      <button onclick="openModal()" class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800">
+        <i class="fa-solid fa-plus mr-2"></i>Neuer Emissionsfaktor
+      </button>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div class="p-4 border-b border-gray-100">
+        <input id="searchInput" oninput="filterTable()" placeholder="Suchen…" class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-72 focus:outline-none focus:ring-2 focus:ring-green-500" />
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm min-w-max">
+          <thead>
+            <tr class="bg-gray-50 text-gray-500 text-xs uppercase">
+              <th class="text-left px-4 py-3">Name</th>
+              <th class="text-right px-4 py-3">Biogen CO₂eq</th>
+              <th class="text-right px-4 py-3">LUC CO₂eq</th>
+              <th class="text-right px-4 py-3">Fossil CO₂eq</th>
+              <th class="text-center px-4 py-3">Einheit</th>
+              <th class="text-center px-4 py-3">Typ</th>
+              <th class="text-center px-4 py-3">TeR</th>
+              <th class="text-center px-4 py-3">GeR</th>
+              <th class="text-center px-4 py-3">TiR</th>
+              <th class="text-center px-4 py-3">DQR</th>
+              <th class="text-left px-4 py-3">Quelle</th>
+              <th class="text-center px-4 py-3">Aktionen</th>
+            </tr>
+          </thead>
+          <tbody id="efTable"></tbody>
+        </table>
+      </div>
+      <div id="emptyMsg" class="text-center py-16 text-gray-400 hidden">
+        <i class="fa-solid fa-database text-4xl mb-3 text-gray-200"></i>
+        <p>Keine Emissionsfaktoren gefunden</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal -->
+<div id="modal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 hidden">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
+    <div class="bg-gradient-to-r from-green-700 to-green-800 px-6 py-4 text-white flex items-center justify-between">
+      <h2 class="font-semibold text-lg" id="modalTitle">Emissionsfaktor anlegen</h2>
+      <button onclick="closeModal()" class="text-green-200 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+    </div>
+    <form id="efForm" onsubmit="saveEF(event)" class="p-6 grid grid-cols-2 gap-4">
+      <input type="hidden" id="editId" />
+      <div class="col-span-2">
+        <label class="block text-xs font-medium text-gray-700 mb-1">Name *</label>
+        <input id="f_name" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">EF Biogenes CO₂ (kgCO₂eq/Einheit)</label>
+        <input id="f_ef_biogenic" type="number" step="any" value="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">EF LUC CO₂eq (kgCO₂eq/Einheit)</label>
+        <input id="f_ef_luc" type="number" step="any" value="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">EF Fossiles CO₂eq (kgCO₂eq/Einheit)</label>
+        <input id="f_ef_fossil" type="number" step="any" value="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Einheit *</label>
+        <input id="f_unit" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="kg / kWh / tkm" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Datenbank-Quelle</label>
+        <input id="f_database_source" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="ecoinvent 3.10" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Referenzjahr</label>
+        <input id="f_reference_year" type="number" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="2023" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Datentyp</label>
+        <select id="f_data_type" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+          <option value="Sekundär">Sekundär</option>
+          <option value="Primär">Primär</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">TeR (1–5) – Zeitliche Repräsentativität</label>
+        <input id="f_ter" type="number" min="1" max="5" value="3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">GeR (1–5) – Geografische Repräsentativität</label>
+        <input id="f_ger" type="number" min="1" max="5" value="3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">TiR (1–5) – Technologische Repräsentativität</label>
+        <input id="f_tir" type="number" min="1" max="5" value="3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+      </div>
+      <div class="col-span-2 flex justify-end gap-3 mt-2 pt-4 border-t border-gray-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Abbrechen</button>
+        <button type="submit" class="px-6 py-2 bg-green-700 text-white rounded-lg text-sm font-medium hover:bg-green-800">Speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast" class="fixed bottom-6 right-6 px-5 py-3 rounded-lg text-white text-sm font-medium shadow-lg opacity-0 transition-all duration-300"></div>
+
+<script src="/static/api.js"></script>
+<script>
+  let allEFs = [];
+
+  async function load() {
+    allEFs = await api.getEFs();
+    renderTable(allEFs);
+  }
+
+  function dqrColor(score) {
+    if (score <= 1.6) return "bg-green-100 text-green-800";
+    if (score <= 3.0) return "bg-yellow-100 text-yellow-800";
+    return "bg-red-100 text-red-800";
+  }
+
+  function renderTable(efs) {
+    const tbody = document.getElementById("efTable");
+    document.getElementById("emptyMsg").classList.toggle("hidden", efs.length > 0);
+    tbody.innerHTML = efs.map(ef => {
+      const dqr = ((ef.ter + ef.ger + ef.tir) / 3).toFixed(1);
+      const cls = dqrColor(parseFloat(dqr));
+      return `
+        <tr class="border-t border-gray-50 hover:bg-gray-50 group">
+          <td class="px-4 py-3 font-medium text-gray-800 max-w-xs">
+            <div class="truncate">${ef.name}</div>
+            <div class="text-xs text-gray-400">${ef.reference_year || ''}</div>
+          </td>
+          <td class="px-4 py-3 text-right text-emerald-700 font-mono text-xs">${ef.ef_biogenic_co2}</td>
+          <td class="px-4 py-3 text-right text-amber-600 font-mono text-xs">${ef.ef_luc_co2e}</td>
+          <td class="px-4 py-3 text-right text-gray-800 font-mono text-xs font-semibold">${ef.ef_fossil_co2e}</td>
+          <td class="px-4 py-3 text-center text-gray-500">${ef.unit}</td>
+          <td class="px-4 py-3 text-center">
+            <span class="px-2 py-0.5 rounded-full text-xs ${ef.data_type === 'Primär' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'}">${ef.data_type}</span>
+          </td>
+          <td class="px-4 py-3 text-center text-xs">${ef.ter}</td>
+          <td class="px-4 py-3 text-center text-xs">${ef.ger}</td>
+          <td class="px-4 py-3 text-center text-xs">${ef.tir}</td>
+          <td class="px-4 py-3 text-center"><span class="px-2 py-0.5 rounded-full text-xs font-medium ${cls}">${dqr}</span></td>
+          <td class="px-4 py-3 text-gray-400 text-xs max-w-xs truncate">${ef.database_source || '–'}</td>
+          <td class="px-4 py-3 text-center">
+            <div class="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition">
+              <button onclick="openModal(${ef.id})" class="text-blue-500 hover:text-blue-700 p-1"><i class="fa-solid fa-pen-to-square"></i></button>
+              <button onclick="deleteEF(${ef.id})" class="text-red-400 hover:text-red-600 p-1"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          </td>
+        </tr>`;
+    }).join("");
+  }
+
+  function filterTable() {
+    const q = document.getElementById("searchInput").value.toLowerCase();
+    renderTable(allEFs.filter(ef => ef.name.toLowerCase().includes(q) || (ef.database_source || "").toLowerCase().includes(q)));
+  }
+
+  function openModal(id) {
+    document.getElementById("modal").classList.remove("hidden");
+    if (id) {
+      const ef = allEFs.find(x => x.id === id);
+      document.getElementById("modalTitle").textContent = "Emissionsfaktor bearbeiten";
+      document.getElementById("editId").value = id;
+      document.getElementById("f_name").value = ef.name;
+      document.getElementById("f_ef_biogenic").value = ef.ef_biogenic_co2;
+      document.getElementById("f_ef_luc").value = ef.ef_luc_co2e;
+      document.getElementById("f_ef_fossil").value = ef.ef_fossil_co2e;
+      document.getElementById("f_unit").value = ef.unit;
+      document.getElementById("f_database_source").value = ef.database_source || "";
+      document.getElementById("f_reference_year").value = ef.reference_year || "";
+      document.getElementById("f_data_type").value = ef.data_type;
+      document.getElementById("f_ter").value = ef.ter;
+      document.getElementById("f_ger").value = ef.ger;
+      document.getElementById("f_tir").value = ef.tir;
+    } else {
+      document.getElementById("modalTitle").textContent = "Emissionsfaktor anlegen";
+      document.getElementById("editId").value = "";
+      document.getElementById("efForm").reset();
+      document.getElementById("f_ef_biogenic").value = "0";
+      document.getElementById("f_ef_luc").value = "0";
+      document.getElementById("f_ef_fossil").value = "0";
+      document.getElementById("f_ter").value = "3";
+      document.getElementById("f_ger").value = "3";
+      document.getElementById("f_tir").value = "3";
+    }
+  }
+
+  function closeModal() { document.getElementById("modal").classList.add("hidden"); }
+
+  async function saveEF(e) {
+    e.preventDefault();
+    const id = document.getElementById("editId").value;
+    const data = {
+      name: document.getElementById("f_name").value,
+      ef_biogenic_co2: parseFloat(document.getElementById("f_ef_biogenic").value) || 0,
+      ef_luc_co2e: parseFloat(document.getElementById("f_ef_luc").value) || 0,
+      ef_fossil_co2e: parseFloat(document.getElementById("f_ef_fossil").value) || 0,
+      unit: document.getElementById("f_unit").value,
+      database_source: document.getElementById("f_database_source").value || null,
+      reference_year: parseInt(document.getElementById("f_reference_year").value) || null,
+      data_type: document.getElementById("f_data_type").value,
+      ter: parseInt(document.getElementById("f_ter").value),
+      ger: parseInt(document.getElementById("f_ger").value),
+      tir: parseInt(document.getElementById("f_tir").value),
+    };
+    try {
+      if (id) { await api.updateEF(parseInt(id), data); showToast("Emissionsfaktor aktualisiert"); }
+      else { await api.createEF(data); showToast("Emissionsfaktor angelegt"); }
+      closeModal();
+      load();
+    } catch (err) { showToast(err.message, "error"); }
+  }
+
+  async function deleteEF(id) {
+    if (!confirm("Emissionsfaktor löschen?")) return;
+    try { await api.deleteEF(id); showToast("Gelöscht"); load(); }
+    catch (err) { showToast(err.message, "error"); }
+  }
+
+  load();
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: pcf-bilanzierung
+    env: python
+    region: frankfurt
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && python seed_data.py && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pcf-postgres
+          property: connectionString
+
+databases:
+  - name: pcf-postgres
+    databaseName: pcf_db
+    user: pcf_user
+    plan: free
